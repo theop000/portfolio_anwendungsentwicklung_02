@@ -32,7 +32,7 @@ def initialize_stations_data():
     print("File 'inventory.txt' successfully downloaded")
 
     # Process the files
-    # Read the inventory file using space separator
+    # Read the inventory file using space separator (.txt file)
     inventory_df = pd.read_csv('./data/inventory.txt', 
                               sep=r'\s+',            # Using raw string for whitespace separator
                               usecols=[0, 1, 2, 3, 4, 5],
@@ -61,7 +61,7 @@ def initialize_stations_data():
         'Station_Name': 'first'   # Take first value since it is the same for each station
     }).reset_index()
 
-    # Fill any NaN values with 0 or another appropriate default value
+    # Fill any NaN values with 0
     stations_df['FirstYear'] = stations_df['FirstYear'].fillna(0).astype(int)
     stations_df['LastYear'] = stations_df['LastYear'].fillna(0).astype(int)
 

@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the current directory contents into the container
 COPY . .
 
-# Make port 8050 available to the world outside this container
+# Make port 8050 available outside of this container
 EXPOSE 8050
 
 # Create a startup script

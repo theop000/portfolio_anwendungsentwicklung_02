@@ -117,6 +117,7 @@ app.layout = html.Div([
                                 id='year-from',
                                 type='number',
                                 min=0,
+                                max=2024,
                                 value=2000,
                                 step=1,
                                 style={
@@ -138,7 +139,7 @@ app.layout = html.Div([
                             dcc.Input(
                                 id='year-to',
                                 type='number',
-                                min=2000,
+                                min=0,
                                 max=2024,
                                 value=2024,
                                 step=1,
@@ -207,6 +208,7 @@ app.layout = html.Div([
                     ]),
                     html.Br(),                    
 
+                    # Button (Stationen suchen)
                     html.Button('Stationen suchen', 
                             id='search-stations-button',
                             style={
@@ -219,11 +221,11 @@ app.layout = html.Div([
                                 'cursor': 'pointer'
                             }),
                     
-                    # Display clicked coordinates
+                    # Display chosen coordinates
                     html.Div(id='click-data', 
                             style={'marginTop': '20px', 'textAlign': 'center'})
 
-                    # Search Parameter container (right side)
+                # Search Parameter container (right side)
                 ], style={
                     'width': '23%',
                     'display': 'inline-block',
@@ -236,6 +238,7 @@ app.layout = html.Div([
                 })
             ], style={'display': 'flex', 'flexDirection': 'row', 'justifyContent': 'space-between'})
         ]),
+        # Tab (Stationsdaten)
         dcc.Tab(label='Stationsdaten', children=[
             html.H1('Stationsdaten',
                     style={'textAlign': 'left', 'marginBottom': 20, 'fontWeight': 'bold'}),
@@ -255,7 +258,7 @@ app.layout = html.Div([
                         )
                     ], style={
                         'display': 'flex',
-                        'flexDirection': 'row',  # Changed to row for horizontal alignment
+                        'flexDirection': 'row',  
                         'alignItems': 'center',
                         'justifyContent': 'center',
                     })
@@ -288,7 +291,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     c = 2 * atan2(sqrt(a), sqrt(1-a))
     return R * c
 
-
+# Default settings on startup (Villingen-Schwenningen)
 @app.callback(
     Output('click-data', 'children'),
     Output('latitude-input', 'value'),
@@ -304,6 +307,7 @@ def update_click_info(clickData):
     lon = clickData['points'][0]['lon']
     return f'Selected coordinates: {lat:.4f}, {lon:.4f}', lat, lon
 
+# Storing selected stations based on distance
 @app.callback(
     Output('station-map', 'figure'),
     Output('selected-stations-store', 'data'),
@@ -320,7 +324,7 @@ def update_click_info(clickData):
 def update_stations_selection(n_clicks, radius_value, count_value, year_from, year_to, lat, lon, figure):
     # Handle the initial call
     if n_clicks is None:
-        # Calculate initial stations based on default coordinates
+        # Calculate initial stations based on default coordinates (Testing)
         stations_df['Distance'] = stations_df.apply(
             lambda row: haversine_distance(lat, lon, row['Latitude'], row['Longitude']), 
             axis=1
@@ -334,7 +338,7 @@ def update_stations_selection(n_clicks, radius_value, count_value, year_from, ye
         
         return figure, filtered_stations.to_dict('records')
     
-    # Rest of the function remains the same
+    # Calculate stations based on chosen coordinates
     stations_df['Distance'] = stations_df.apply(
         lambda row: haversine_distance(lat, lon, row['Latitude'], row['Longitude']), 
         axis=1
@@ -348,6 +352,7 @@ def update_stations_selection(n_clicks, radius_value, count_value, year_from, ye
     
     return figure, filtered_stations.to_dict('records')
 
+# Creating the Table based on the selected stations
 @app.callback(
     Output('station-data-table', 'children'),
     Input('selected-stations-store', 'data'),
@@ -357,16 +362,16 @@ def update_station_table(selected_stations):
     if not selected_stations:
         return "No stations selected"
     
-    # Convert stored data directly to DataFrame
+    # Convert stored data directly to DataFrame 
     display_df = pd.DataFrame(selected_stations)[
-        ['Station_Name', 'Distance', 'FirstYear', 'LastYear', 'Station_ID', 'Latitude']  # Added Latitude
+        ['Station_Name', 'Distance', 'FirstYear', 'LastYear', 'Station_ID', 'Latitude'] 
     ]
     
     # Round Distance to 2 decimal places
     display_df['Distance'] = display_df['Distance'].round(2)
     
     return dash.dash_table.DataTable(
-        id='stations-table',  # Added the ID here
+        id='stations-table',  
         data=display_df.to_dict('records'),
         columns=[
             {'name': 'Station Name', 'id': 'Station_Name'},
@@ -390,6 +395,7 @@ def update_station_table(selected_stations):
         row_selectable='single'
     )
 
+# Prevention of invalid selection (year_to, year_from) in Zeitraum
 @app.callback(
     Output('year-to', 'value'),
     Output('year-from', 'value'),
@@ -415,6 +421,7 @@ def validate_years(year_from, year_to):
             
     return year_to, year_from
 
+# Creation of data tabel and graph based on a selected station
 @app.callback(
     [Output('yearly-data-container', 'children'),
      Output('loading-message', 'children'),
@@ -453,10 +460,10 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
             raise TimeoutError("Data loading timeout")
             
         if not (os.path.exists(monthly_file) and os.path.exists(yearly_file)):
-            # Process station files...
+            # Process station files
             station_files = [f for f in os.listdir("./data/stations") if f.endswith('_yearly.csv')]
             if len(station_files) >= 10:
-                # Handle old files removal...
+                # Oldest file gets removed
                 station_times = []
                 for fname in station_files:
                     station_id_from_file = fname.replace('_yearly.csv', '')
@@ -494,6 +501,7 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
             (monthly_df['Year'] <= year_to)
         ]
         
+        # Seasons based on north/south of Equator 
         is_northern = station_lat >= 0
         
         def calculate_seasonal_data(df):
@@ -545,12 +553,12 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
             (combined_df['Jahr'] <= year_to)
         ]
         
-        # If we get here, process was successful
+        # Header with the stations name
         return [
             html.H3(f"{selected_station['Station_Name']}",
                    style={'marginTop': '20px', 'marginBottom': '10px'}),
             
-            # Data Table
+            # Data Table and styling
             dash.dash_table.DataTable(
                 data=combined_df.to_dict('records'),
                 columns=[
@@ -691,11 +699,11 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
                                 'title': 'Jahr',
                                 'tickmode': 'linear',
                                 'dtick': 1,
-                                'fixedrange': True  # Fix x-axis
+                                'fixedrange': True  
                             },
                             'yaxis': {
                                 'title': 'Temperatur in Grad C',
-                                'fixedrange': True  # Fix y-axis
+                                'fixedrange': True  
                             },
                             'hovermode': 'x unified',
                             'legend': {
@@ -703,9 +711,9 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
                                 'y': 1,
                                 'xanchor': 'left'
                             },
-                            'height': 700,  # Increased height
-                            'uirevision': True,  # Maintains zoom level on updates
-                            'dragmode': False,  # Disable dragging
+                            'height': 700,  
+                            'uirevision': True,  
+                            'dragmode': False,  
                         }
                     },
                     config={
