@@ -1,0 +1,72 @@
+Interface:
+
+-Input field: Radius (float)
+|-von 0.01-100 eventuell anpassen, berechnung nach datentyp
+-Slider: Anzahl der Stationen (1-10)
+-Input fields: Zeitraum auswählen (Anfang + Ende)
+|-anfang !< ende
+-Input fields: Koordinaten eingeben (Breitengrad | Längengrad)
+-Beschriftungen anpassen
+-Button: Stationen suchen
+-on-click auf Station: Breitengrad und Längengrad eintragen
+
+Download:
+
+ALTERNATIVELY, if you only need data for one station:
+
+- Find the station's name in "ghcnd-stations.txt" and note its station
+  identification code (e.g., PHOENIX AP (Airport) is "USW00023183"); and
+- Download the data file (i.e., ".dly" file) that corresponds to this code
+  (e.g., "USW00023183.dly" has the data for PHOENIX AP).  
+  Note that the ".dly" file is located in the "all" subdirectory.
+
+"https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/" + station_id + ".dly"
+
+Tabelle:
+
+Jedes Jahr die Temperatur Minima Mittelwerte und Temp. Maxima Mittelwerte berechnen (je einen Datenpunkt pro Jahr)
+Berechnung Mittelwerte:
+Angefangen mit dem zweiten Jahr wo sowohl Minima und Maxima Daten verfügbar sind, da der Winter im Dezember des vorangegangen Jahr
+entspricht, bis November des ausgewählten Jahres (Dadurch denkungsgleich mit der Berechnung der Jahreszeiten)
+Keine Angebrochenen Jahre werden verwendet (z.B. 2025)
+
+Berechnung Jahreszeiten:
+Nordhalbkugel (if latitude >= 0: # Nordhalbkugel) Winter (Dezember, Januar, Februar) usw. bis Herbst (Ende November)
+Ebenfalls ein Datenpunkt pro Jahreszeit (4 pro Jahr)
+
+Tabellenaufbau:
+Header:
+
+- Jahres Minima
+- Jahres Maxima
+- Winter Minima
+- Winter Maxima
+- Frühling Minima
+- Frühling Maxima
+- Sommer Minima
+- Sommer Maxima
+- Herbst Minima
+- Herbst Maxima
+  Zeilen:
+- pro Jahr eine Zeile (erstes Jahr muss 2. Jahr aus dem Verfügbaren Datensatz sein; abgleich mit stations_inventory.csv)
+
+Grafisch:
+
+- Header einfärben: Minima blau, Maxima rot
+
+Grafik zeigt zu beginn alle linien an
+
+rest funktional
+
+kein spinner beim laden allerdings keine lange dauer
+
+docker file
+
+docker commands:
+
+docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q) && docker rmi $(docker images -q) -f
+
+docker build -t weather-app .
+docker run -p 8050:8050 weather-app
+
+http://localhost:8050
