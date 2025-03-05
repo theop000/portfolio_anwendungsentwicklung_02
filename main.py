@@ -8,7 +8,7 @@ from math import radians, sin, cos, sqrt, atan2
 import os
 import time
 
-# Import the functions from the new data.py
+# Import the functions from data.py
 from data import (
     initialize_stations_data,
     download_station_data,
@@ -20,7 +20,7 @@ from data import (
 # Create the Dash app
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 
-# Initialize the stations data only if it doesn't exist
+# Initialize the stations data if it doesn't exist
 if not os.path.exists('./data/stations.csv') or os.path.getsize('./data/stations.csv') == 0:
     initialize_stations_data()
 
@@ -28,7 +28,7 @@ if not os.path.exists('./data/stations.csv') or os.path.getsize('./data/stations
 stations_df = pd.read_csv('./data/stations.csv',
                          usecols=['Station_Name', 'Latitude', 'Longitude', 'FirstYear', 'LastYear', 'Station_ID'])
 
-# Create the map figure using scatter_mapbox
+# Create the map figure
 fig = px.scatter_mapbox(stations_df,
                          lat='Latitude',
                          lon='Longitude',
@@ -278,8 +278,7 @@ app.layout = html.Div([
     ])
 ])
 
-
-
+# Calculate distances on globe
 def haversine_distance(lat1, lon1, lat2, lon2):
     R = 6371  # Earth's radius in kilometers
     
@@ -421,7 +420,7 @@ def validate_years(year_from, year_to):
             
     return year_to, year_from
 
-# Creation of data tabel and graph based on a selected station
+# Creation of data table and graph based on a selected station
 @app.callback(
     [Output('yearly-data-container', 'children'),
      Output('loading-message', 'children'),

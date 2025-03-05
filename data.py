@@ -2,6 +2,7 @@ import requests
 import os
 import pandas as pd
 
+# Download of relevant stations for the marker placements and selected stations table
 def initialize_stations_data():
     """
     Downloads and processes the initial stations data to create a clean stations.csv file
@@ -73,6 +74,7 @@ def initialize_stations_data():
     os.remove('./data/inventory.txt')
     print("Removed temporary file inventory.txt")
 
+# Download a specific stations data
 def download_station_data(station_id):
     """
     Downloads and converts a station's .dly file to CSV format.
@@ -146,6 +148,7 @@ def download_station_data(station_id):
         print(f"Error processing data for station {station_id}: {e}")
         return False
 
+# Clean the station data according to relevant information
 def clean_station_data(station_id):
     """
     Cleans the station data by:
@@ -182,6 +185,7 @@ def clean_station_data(station_id):
         print(f"Error cleaning data for station {station_id}: {e}")
         return False
 
+# Save monthly averages in a new file
 def create_monthly_averages(station_id):
     """
     Creates a new CSV file with monthly averages for TMAX and TMIN values.
@@ -227,6 +231,7 @@ def create_monthly_averages(station_id):
         print(f"Error creating monthly averages for station {station_id}: {e}")
         return False
 
+# Save yearly averages in a new file
 def create_yearly_averages(station_id):
     """
     Creates a new CSV file with yearly averages for TMAX and TMIN values,
@@ -267,6 +272,6 @@ def create_yearly_averages(station_id):
         print(f"Error creating yearly averages for station {station_id}: {e}")
         return False
 
-# Keep the if __name__ == "__main__" block for direct script execution
+# Keep the if __name__ == "__main__" block for direct script execution (Testing)
 if __name__ == "__main__":
     initialize_stations_data()
