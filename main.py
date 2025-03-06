@@ -52,7 +52,7 @@ fig.update_traces(
     selector=dict(type='scattermapbox')  
 )
 
-# Define the app layout
+# Defines the app layout
 app.layout = html.Div([
     # Store component to save the selected stations
     dcc.Store(id='selected-stations-store'),
@@ -355,28 +355,39 @@ def update_stations_selection(n_clicks, radius_value, count_value, year_from, ye
 @app.callback(
     Output('station-data-table', 'children'),
     Input('selected-stations-store', 'data'),
+    Input('year-from', 'value'),
+    Input('year-to', 'value'),
     prevent_initial_call=False
 )
-def update_station_table(selected_stations):
+def update_station_table(selected_stations, year_from, year_to):
     if not selected_stations:
         return "No stations selected"
     
     # Convert stored data directly to DataFrame 
-    display_df = pd.DataFrame(selected_stations)[
-        ['Station_Name', 'Distance', 'FirstYear', 'LastYear', 'Station_ID', 'Latitude'] 
+    display_df = pd.DataFrame(selected_stations)
+    
+    # Filter stations based on available data range
+    display_df = display_df[
+        (display_df['FirstYear'] <= year_to) & 
+        (display_df['LastYear'] >= year_from)
     ]
     
-    # Round Distance to 2 decimal places
-    display_df['Distance'] = display_df['Distance'].round(2)
+    # If no stations match the criteria
+    if display_df.empty:
+        return "No stations found for the selected time period"
+    
+    # Select columns for display and round Distance
+    display_df = display_df[['Station_Name', 'Distance', 'FirstYear', 'LastYear', 'Station_ID', 'Latitude']]
+    display_df['Distance'] = display_df['Distance'].round(1)
     
     return dash.dash_table.DataTable(
         id='stations-table',  
         data=display_df.to_dict('records'),
         columns=[
-            {'name': 'Station Name', 'id': 'Station_Name'},
-            {'name': 'Distance (km)', 'id': 'Distance'},
-            {'name': 'First Year', 'id': 'FirstYear'},
-            {'name': 'Last Year', 'id': 'LastYear'},
+            {'name': 'Stationsname', 'id': 'Station_Name'},
+            {'name': 'Distanz (km)', 'id': 'Distance'},
+            {'name': 'verfügbare Jahre (Start)', 'id': 'FirstYear'},
+            {'name': 'verfügbare Jahre (Ende)', 'id': 'LastYear'},
             {'name': 'Station ID', 'id': 'Station_ID'}
         ],
         style_table={'overflowX': 'auto'},
@@ -394,7 +405,7 @@ def update_station_table(selected_stations):
         row_selectable='single'
     )
 
-# Prevention of invalid selection (year_to, year_from) in Zeitraum
+# Prevention of invalid selection (year_to, year_from) in Sucheinstellungen > Zeitraum
 @app.callback(
     Output('year-to', 'value'),
     Output('year-from', 'value'),
@@ -442,7 +453,6 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
         }
     
     loading_style = {'color': 'white', 'textAlign': 'center', 'padding': '10px', 'marginRight': '10px'}
-    start_time = time.time()
     
     try:
         # Get the selected station's data
@@ -453,16 +463,12 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
         # Check if files exist and create if needed
         monthly_file = f"./data/stations/{station_id}_monthly.csv"
         yearly_file = f"./data/stations/{station_id}_yearly.csv"
-        raw_file = f"./data/stations/{station_id}.csv"
-        
-        if time.time() - start_time > 5:
-            raise TimeoutError("Data loading timeout")
             
         if not (os.path.exists(monthly_file) and os.path.exists(yearly_file)):
-            # Process station files
+            # Process station files and manage storage limit
             station_files = [f for f in os.listdir("./data/stations") if f.endswith('_yearly.csv')]
             if len(station_files) >= 10:
-                # Oldest file gets removed
+                # Remove oldest files
                 station_times = []
                 for fname in station_files:
                     station_id_from_file = fname.replace('_yearly.csv', '')
@@ -482,13 +488,13 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
             
             # Download and process new data
             if not download_station_data(station_id):
-                raise Exception("Failed to download station data")
+                return "", f"Fehler beim Laden der Daten für Station {station_id}", "", loading_style
             if not clean_station_data(station_id):
-                raise Exception("Failed to clean station data")
+                return "", f"Fehler beim Verarbeiten der Daten für Station {station_id}", "", loading_style
             if not create_monthly_averages(station_id):
-                raise Exception("Failed to create monthly averages")
+                return "", f"Fehler beim Erstellen der Monatsdurchschnitte für Station {station_id}", "", loading_style
             if not create_yearly_averages(station_id):
-                raise Exception("Failed to create yearly averages")
+                return "", f"Fehler beim Erstellen der Jahresdurchschnitte für Station {station_id}", "", loading_style
         
         # Read the processed data
         yearly_df = pd.read_csv(yearly_file)
@@ -498,7 +504,7 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
         monthly_df = monthly_df[
             (monthly_df['Year'] >= year_from) & 
             (monthly_df['Year'] <= year_to)
-        ]
+        ].copy()  # Create copy to avoid SettingWithCopyWarning
         
         # Seasons based on north/south of Equator 
         is_northern = station_lat >= 0
@@ -509,6 +515,10 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
             for year in df['Year'].unique():
                 current_year = df[df['Year'] == year]
                 prev_year = df[df['Year'] == year - 1]
+                
+                # Get yearly values, handling NaN
+                yearly_min = yearly_df[yearly_df['Year'] == year]['TMIN'].iloc[0] if not yearly_df[yearly_df['Year'] == year]['TMIN'].empty else None
+                yearly_max = yearly_df[yearly_df['Year'] == year]['TMAX'].iloc[0] if not yearly_df[yearly_df['Year'] == year]['TMAX'].empty else None
                 
                 if is_northern:
                     winter_months = pd.concat([
@@ -529,16 +539,16 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
                 
                 row_data = {
                     'Jahr': year,
-                    'Min. (jährlich)': yearly_df[yearly_df['Year'] == year]['TMIN'].iloc[0],
-                    'Max. (jährlich)': yearly_df[yearly_df['Year'] == year]['TMAX'].iloc[0],
-                    'Winter_Min': winter_months['TMIN'].mean().round(2) if not winter_months.empty else None,
-                    'Winter_Max': winter_months['TMAX'].mean().round(2) if not winter_months.empty else None,
-                    'Frühling_Min': spring_months['TMIN'].mean().round(2) if not spring_months.empty else None,
-                    'Frühling_Max': spring_months['TMAX'].mean().round(2) if not spring_months.empty else None,
-                    'Sommer_Min': summer_months['TMIN'].mean().round(2) if not summer_months.empty else None,
-                    'Sommer_Max': summer_months['TMAX'].mean().round(2) if not summer_months.empty else None,
-                    'Herbst_Min': fall_months['TMIN'].mean().round(2) if not fall_months.empty else None,
-                    'Herbst_Max': fall_months['TMAX'].mean().round(2) if not fall_months.empty else None,
+                    'Min. (jährlich)': yearly_min,
+                    'Max. (jährlich)': yearly_max,
+                    'Winter_Min': winter_months['TMIN'].mean().round(1) if not winter_months.empty and not winter_months['TMIN'].isna().all() else None,
+                    'Winter_Max': winter_months['TMAX'].mean().round(1) if not winter_months.empty and not winter_months['TMAX'].isna().all() else None,
+                    'Frühling_Min': spring_months['TMIN'].mean().round(1) if not spring_months.empty and not spring_months['TMIN'].isna().all() else None,
+                    'Frühling_Max': spring_months['TMAX'].mean().round(1) if not spring_months.empty and not spring_months['TMAX'].isna().all() else None,
+                    'Sommer_Min': summer_months['TMIN'].mean().round(1) if not summer_months.empty and not summer_months['TMIN'].isna().all() else None,
+                    'Sommer_Max': summer_months['TMAX'].mean().round(1) if not summer_months.empty and not summer_months['TMAX'].isna().all() else None,
+                    'Herbst_Min': fall_months['TMIN'].mean().round(1) if not fall_months.empty and not fall_months['TMIN'].isna().all() else None,
+                    'Herbst_Max': fall_months['TMAX'].mean().round(1) if not fall_months.empty and not fall_months['TMAX'].isna().all() else None,
                 }
                 seasonal_data.append(row_data)
             
@@ -727,11 +737,9 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
             })
         ], "", "", loading_style
         
-    except TimeoutError:
-        return "", "Probleme beim Laden der Stationsdaten, versuche es später erneut", "", loading_style
     except Exception as e:
         print(f"Error processing station data: {str(e)}")
-        return "", "Probleme beim Laden der Stationsdaten, versuche es später erneut", "", loading_style
+        return "", "Fehler beim Laden der Stationsdaten", "", loading_style
 
 # Run the app
 if __name__ == '__main__':

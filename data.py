@@ -188,7 +188,8 @@ def clean_station_data(station_id):
 # Save monthly averages in a new file
 def create_monthly_averages(station_id):
     """
-    Creates a new CSV file with monthly averages for TMAX and TMIN values.
+    Creates a new CSV file with monthly averages for TMAX and TMIN values,
+    including empty values for months without data.
     The new file will be named 'station_id_monthly.csv'.
     
     Args:
@@ -202,8 +203,18 @@ def create_monthly_averages(station_id):
         input_file = f"./data/stations/{station_id}.csv"
         df = pd.read_csv(input_file)
         
+        # Get min and max years from the data
+        min_year = df['Year'].min()
+        max_year = df['Year'].max()
+        
+        # Create a complete range of years and months
+        years = range(min_year, max_year + 1)
+        months = range(1, 13)
+        all_dates = [(year, month) for year in years for month in months]
+        all_dates_df = pd.DataFrame(all_dates, columns=['Year', 'Month'])
+        
         # Group by Year, Month, and Element to calculate monthly averages
-        monthly_df = df.groupby(['Year', 'Month', 'Element'])['Value'].mean().round(2).reset_index()
+        monthly_df = df.groupby(['Year', 'Month', 'Element'])['Value'].mean().round(1).reset_index()
         
         # Pivot the data to have TMAX and TMIN as separate columns
         monthly_df = monthly_df.pivot(
@@ -211,6 +222,9 @@ def create_monthly_averages(station_id):
             columns='Element',
             values='Value'
         ).reset_index()
+        
+        # Merge with all dates to include missing months
+        monthly_df = pd.merge(all_dates_df, monthly_df, on=['Year', 'Month'], how='left')
         
         # Rename columns to be more descriptive
         monthly_df.columns.name = None
@@ -235,7 +249,7 @@ def create_monthly_averages(station_id):
 def create_yearly_averages(station_id):
     """
     Creates a new CSV file with yearly averages for TMAX and TMIN values,
-    calculated from the monthly averages.
+    including empty values for years without data.
     The new file will be named 'station_id_yearly.csv'.
     
     Args:
@@ -245,19 +259,35 @@ def create_yearly_averages(station_id):
         bool: True if successful, False if failed
     """
     try:
-        # Read the monthly averages file
-        input_file = f"./data/stations/{station_id}_monthly.csv"
-        monthly_df = pd.read_csv(input_file)
+        # Read the original cleaned data file with daily values
+        input_file = f"./data/stations/{station_id}.csv"
+        df = pd.read_csv(input_file)
         
-        # Group by Year to calculate yearly averages
-        yearly_df = monthly_df.groupby(['Year']).agg({
-            'Station_ID': 'first',  # Keep the station ID
-            'TMAX': 'mean',         # Average of monthly TMAX values
-            'TMIN': 'mean'          # Average of monthly TMIN values
-        }).round(2)
+        # Get min and max years from the data
+        min_year = df['Year'].min()
+        max_year = df['Year'].max()
         
-        # Reset index to make Year a column
-        yearly_df = yearly_df.reset_index()
+        # Create a complete range of years
+        all_years = pd.DataFrame({'Year': range(min_year, max_year + 1)})
+        
+        # Group by Year and Element to calculate yearly averages
+        yearly_df = df.groupby(['Year', 'Element'])['Value'].mean().round(1).reset_index()
+        
+        # Pivot the data to have TMAX and TMIN as separate columns
+        yearly_df = yearly_df.pivot(
+            index='Year',
+            columns='Element',
+            values='Value'
+        ).reset_index()
+        
+        # Merge with all years to include missing years
+        yearly_df = pd.merge(all_years, yearly_df, on='Year', how='left')
+        
+        # Rename columns to be more descriptive
+        yearly_df.columns.name = None
+        
+        # Add Station_ID column
+        yearly_df['Station_ID'] = station_id
         
         # Reorder columns
         yearly_df = yearly_df[['Station_ID', 'Year', 'TMAX', 'TMIN']]
