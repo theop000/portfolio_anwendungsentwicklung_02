@@ -453,6 +453,7 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
         }
     
     loading_style = {'color': 'white', 'textAlign': 'center', 'padding': '10px', 'marginRight': '10px'}
+    timeout_message = "Timeout beim laden der Stationsdaten, versuche es später erneut"
     
     try:
         # Get the selected station's data
@@ -463,6 +464,8 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
         # Check if files exist and create if needed
         monthly_file = f"./data/stations/{station_id}_monthly.csv"
         yearly_file = f"./data/stations/{station_id}_yearly.csv"
+        
+        start_time = time.time()
             
         if not (os.path.exists(monthly_file) and os.path.exists(yearly_file)):
             # Process station files and manage storage limit
@@ -486,9 +489,18 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
                     if os.path.exists(old_file):
                         os.remove(old_file)
             
+            # Check timeout before download
+            if time.time() - start_time > 5:
+                return "", timeout_message, "", loading_style
+                
             # Download and process new data
             if not download_station_data(station_id):
                 return "", f"Fehler beim Laden der Daten für Station {station_id}", "", loading_style
+                
+            # Check timeout after download
+            if time.time() - start_time > 5:
+                return "", timeout_message, "", loading_style
+                
             if not clean_station_data(station_id):
                 return "", f"Fehler beim Verarbeiten der Daten für Station {station_id}", "", loading_style
             if not create_monthly_averages(station_id):
@@ -496,6 +508,10 @@ def display_yearly_data(selected_rows, table_data, year_from, year_to):
             if not create_yearly_averages(station_id):
                 return "", f"Fehler beim Erstellen der Jahresdurchschnitte für Station {station_id}", "", loading_style
         
+        # Check timeout before reading files
+        if time.time() - start_time > 5:
+            return "", timeout_message, "", loading_style
+
         # Read the processed data
         yearly_df = pd.read_csv(yearly_file)
         monthly_df = pd.read_csv(monthly_file)

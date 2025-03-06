@@ -58,7 +58,6 @@ Grafik zeigt zu beginn alle linien an
 
 rest funktional
 
-kein spinner beim laden allerdings keine lange dauer
 
 docker file
 
@@ -70,3 +69,4 @@ docker build -t weather-app .
 docker run -p 8050:8050 weather-app
 
 http://localhost:8050
+
