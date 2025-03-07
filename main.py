@@ -279,7 +279,7 @@ app.layout = html.Div([
 ])
 
 # Calculate distances on globe
-def haversine_distance(lat1, lon1, lat2, lon2):
+def haversine_distance(lat1, lon1, lat2, lon2): 
     R = 6371  # Earth's radius in kilometers
     
     lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])

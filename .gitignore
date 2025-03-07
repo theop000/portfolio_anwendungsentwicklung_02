@@ -1,0 +1,8 @@
+# Test files and directories
+test_*.py
+tests/
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+todo.txt
